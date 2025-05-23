@@ -62,14 +62,6 @@ low_team_stats=low_team_stats %>%rename(year=lower_year)
 finalfeature <- high_team_stats %>%
   left_join(low_team_stats, by = "matchup_id") 
 
-# **Feature Engineering**
-#finalfeature <- finalfeature %>%
-#  mutate(
- #   efficiency_diff = high_KADJ.EM - low_KADJ.EM,
- #   offense_diff = high_KADJ.O - low_KADJ.O,
-   # defense_diff = high_KADJ.D - low_KADJ.D,
-  #  win_perc_diff = high_WIN. - low_WIN.
- # )
 
 finalfeature <- na.omit(finalfeature)
 finalfeature <- finalfeature %>% mutate(year=year.x)
@@ -86,12 +78,7 @@ testdata <- finalfeature %>% filter(year %in% c(2022, 2023))
 traindataclean <- traindata %>% select(-c(year, year.x, year.y,highseedteam,lowseedteam,highseed,lowseed,matchup_id))
 testdataclean <- testdata %>% select(-c(year, year.x, year.y,highseedteam,lowseedteam,highseed,lowseed,matchup_id))
 
-# One-hot encode round
-#round_dummies_train <- model.matrix(~ round - 1, data = traindataclean)
-#round_dummies_test <- model.matrix(~ round - 1, data = testdataclean)
 
-#traindataencoded <- cbind(traindataclean[, !(names(traindataclean) %in% 'round')], round_dummies_train)
-#testdataencoded <- cbind(testdataclean[, !(names(testdataclean) %in% 'round')], round_dummies_test)
 
 # Prepare for XGBoost
 X_train <- as.matrix(traindataclean %>% select(-highseed_win))
@@ -146,15 +133,19 @@ log_loss <- -mean(y_test * log(preds) + (1 - y_test) * log(1 - preds))
 
 print(paste("Brier Score:", round(brier_score, 4)))
 print(paste("Log Loss:", round(log_loss, 4)))
+# Predict 2025 Tournament Matchups
 submission=read.csv("competition_submission.csv")
 kenpomtwentytwentyfive <-kenpom %>%filter(YEAR==2025)
 kenpomtwentytwentyfive$TEAM[kenpomtwentytwentyfive$TEAM=="UC San Diego"]="San Diego"
 kenpomtwentytwentyfive$TEAM[kenpomtwentytwentyfive$TEAM=="Nebraska Omaha"]="Omaha"
 kenpomtwentytwentyfive$TEAM[kenpomtwentytwentyfive$TEAM=="SIU Edwardsville"]="SIUE"
+# Join team stats for predictions
 matchups2025=left_join(submission,kenpomtwentytwentyfive,by=c("higher_seed"="TEAM"))
 matchupscombined=left_join(matchups2025,kenpomtwentytwentyfive,by=c("lower_seed"="TEAM"))
+# Clean column names
 colnames(matchupscombined) <- gsub("^(.*)\\.x$", "higher_\\1", colnames(matchupscombined))
 colnames(matchupscombined) <- gsub("^(.*)\\.y$", "lower_\\1", colnames(matchupscombined))
+# Select relevant columns and predict
 higher_stats <- paste0("higher_", adv_stats)
 lower_stats <- paste0("lower_", adv_stats)
 matchups_selected <- matchupscombined %>%
